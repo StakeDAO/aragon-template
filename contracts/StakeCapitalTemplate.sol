@@ -23,9 +23,14 @@ contract StakeCapitalTemplate is BaseTemplate, TokenCache {
     struct DeployedContracts {
         Kernel dao;
         ITokenWrapper tokenWrapper;
+        TokenManager tokenManager;
         Voting stakerVoting;
         Voting teamVoting;
     }
+
+    // TODO: Fix StackTooDeep Error
+    ICycleManager cycleManager;
+    IStablecoinRewards stablecoinRewards;
 
     mapping (address => DeployedContracts) private deployedContracts;
 
@@ -60,31 +65,34 @@ contract StakeCapitalTemplate is BaseTemplate, TokenCache {
 
         _createVotingPermissions(acl, stakerVoting, teamVoting, tokenManager, teamVoting);
 
-        _storeContracts(dao, tokenWrapper, teamVoting, msg.sender);
+        _storeContracts(dao, tokenWrapper, tokenManager, teamVoting, msg.sender);
     }
 
     /**
     * @dev Deploy a Company DAO using a previously cached MiniMe token
     * @param _id String with the name for org, will assign `[id].aragonid.eth`
     */
-    function newInstance(string memory _id, ERC20 _stablecoin) public
-    {
+    function newInstance(string memory _id, ERC20 _stablecoin) public {
+        delete cycleManager;
+        delete stablecoinRewards;
+
         _validateId(_id);
 
-        (Kernel dao, ITokenWrapper tokenWrapper, Voting teamVoting) = _retrieveContracts(msg.sender);
+        (Kernel dao, ITokenWrapper tokenWrapper, TokenManager tokenManager, Voting teamVoting) = _retrieveContracts(msg.sender);
         ACL acl = ACL(dao.acl());
 
         (Agent agent, Finance finance) = _setupAgentAndFinance(dao, acl, teamVoting);
-        ICycleManager cycleManager = _setupCycleManager(dao);
-        IStablecoinRewards stablecoinRewards = _setupStablecoinRewards(dao, acl, teamVoting, cycleManager, tokenWrapper, agent, _stablecoin);
+        cycleManager = _setupCycleManager(dao);
+        stablecoinRewards = _setupStablecoinRewards(dao, acl, teamVoting, cycleManager, tokenWrapper,
+            tokenManager, agent, _stablecoin);
 
         _setupAgentPermissions(acl, agent, finance, stablecoinRewards, teamVoting);
-        _setupCycleManagerPermissions(acl, cycleManager, teamVoting, stablecoinRewards);
+        _setupCycleManagerPermissions(acl, cycleManager, tokenManager, teamVoting, stablecoinRewards);
         _setupTokenWrapperPermissions(acl, tokenWrapper, stablecoinRewards, teamVoting);
 
         _transferRootPermissionsFromTemplateAndFinalizeDAO(dao, teamVoting);
         _registerID(_id, dao);
-        _deleteStoredTokens(msg.sender);
+        _deleteStoredContracts(msg.sender);
     }
 
     function _setupTokenWrapper(Kernel _dao, ERC20 _sctToken, Voting _teamVoting) internal returns (ITokenWrapper) {
@@ -118,13 +126,15 @@ contract StakeCapitalTemplate is BaseTemplate, TokenCache {
     }
 
     function _setupStablecoinRewards(Kernel _dao, ACL _acl, Voting _teamVoting, ICycleManager _cycleManager,
-        ITokenWrapper _tokenWrapper, Agent _agent, ERC20 _stablecoin) internal returns (IStablecoinRewards)
+        ITokenWrapper _tokenWrapper, TokenManager _tokenManager, Agent _agent, ERC20 _stablecoin)
+        internal returns (IStablecoinRewards)
     {
         bytes32 _appId = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("stablecoin-rewards")));
-        bytes memory initializeData = abi.encodeWithSelector(IStablecoinRewards(0).initialize.selector, _cycleManager, _tokenWrapper, _agent, _stablecoin);
-        IStablecoinRewards stablecoinRewards = IStablecoinRewards(_installNonDefaultApp(_dao, _appId));
+        bytes memory initializeData = abi.encodeWithSelector(IStablecoinRewards(0).initialize.selector, _cycleManager,
+            _tokenWrapper, _agent, _stablecoin);
+        IStablecoinRewards stablecoinRewards = IStablecoinRewards(_installNonDefaultApp(_dao, _appId, initializeData));
 
-        _acl.createPermission(ANY_ENTITY, stablecoinRewards, stablecoinRewards.CREATE_REWARD_ROLE(), _teamVoting);
+        _acl.createPermission(_tokenManager, stablecoinRewards, stablecoinRewards.CREATE_REWARD_ROLE(), _teamVoting);
 
         return stablecoinRewards;
     }
@@ -137,8 +147,13 @@ contract StakeCapitalTemplate is BaseTemplate, TokenCache {
         _acl.setPermissionManager(_teamVoting, _agent, _agent.TRANSFER_ROLE());
     }
 
-    function _setupCycleManagerPermissions(ACL _acl, ICycleManager _cycleManager, Voting _teamVoting, IStablecoinRewards _stablecoinRewards) internal {
-        _acl.createPermission(_teamVoting, _cycleManager, _cycleManager.UPDATE_CYCLE_ROLE(), _teamVoting);
+    function _setupCycleManagerPermissions(ACL _acl, ICycleManager _cycleManager, TokenManager _tokenManager,
+        Voting _teamVoting, IStablecoinRewards _stablecoinRewards) internal
+    {
+        // TODO: Update for live deployment, probably remove ability for token manager to update cycle.
+        _acl.createPermission(_teamVoting, _cycleManager, _cycleManager.UPDATE_CYCLE_ROLE(), address(this));
+        _acl.grantPermission(_tokenManager, _cycleManager, _cycleManager.UPDATE_CYCLE_ROLE());
+        _acl.setPermissionManager(_teamVoting, _cycleManager, _cycleManager.UPDATE_CYCLE_ROLE());
         _acl.createPermission(_stablecoinRewards, _cycleManager, _cycleManager.START_CYCLE_ROLE(), _teamVoting);
     }
 
@@ -175,23 +190,25 @@ contract StakeCapitalTemplate is BaseTemplate, TokenCache {
         require(_stakerVotingSettings.length == 3, ERROR_BAD_VOTE_SETTINGS);
     }
 
-    function _storeContracts(Kernel _dao, ITokenWrapper _tokenWrapper, Voting _teamVoting, address _deployer) internal {
+    function _storeContracts(Kernel _dao, ITokenWrapper _tokenWrapper, TokenManager _tokenManager, Voting _teamVoting, address _deployer) internal {
         deployedContracts[_deployer].dao = _dao;
         deployedContracts[_deployer].tokenWrapper = _tokenWrapper;
+        deployedContracts[_deployer].tokenManager = _tokenManager;
         deployedContracts[_deployer].teamVoting = _teamVoting;
     }
 
-    function _retrieveContracts(address _owner) internal returns (Kernel, ITokenWrapper, Voting) {
+    function _retrieveContracts(address _owner) internal returns (Kernel, ITokenWrapper, TokenManager, Voting) {
         require(deployedContracts[_owner].dao != address(0), ERROR_MISSING_TOKEN_CACHE);
         DeployedContracts memory ownerDeployedContracts = deployedContracts[_owner];
         return (
             ownerDeployedContracts.dao,
             ownerDeployedContracts.tokenWrapper,
+            ownerDeployedContracts.tokenManager,
             ownerDeployedContracts.teamVoting
         );
     }
 
-    function _deleteStoredTokens(address _owner) internal {
+    function _deleteStoredContracts(address _owner) internal {
         delete deployedContracts[_owner];
     }
 }

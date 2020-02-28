@@ -30,24 +30,30 @@ $ aragon start
 $ npm run deploy:rpc
 ```
 
-6) Deploy the Token-Wrapper to the devchain as it's not installed by default like the other main apps (Voting, Token Manager, Agent etc):
-- Download https://github.com/aragonone/token-wrapper
-- Run `npm install` in the `token-wrapper` folder
+6) Deploy the forked Token Wrapper app to the devchain as it's not installed by default like the other main apps (Voting, Token Manager, Agent etc):
+- Download https://github.com/StakeDAO/voting-connectors
+- Run `npm install` in the `apps/token-wrapper` folder
 - Execute `npm run apm:publish major`
 
-7) Deploy the Rewards app to the devchain as it's not installed by default like the other main apps (Voting, Token Manager, Agent etc):
-- Download https://github.com/AutarkLabs/open-enterprise
-- Run `npm install` in the `open-enterprise` folder
-- Execute `npm run build` in the `open-enterprise/apps/rewards` folder
-- Execute `npm run publish:major` in the `open-enterprise/apps/rewards` folder
+7) Deploy the Stablecoin Rewards app to the devchain as it's not installed by default like the other main apps (Voting, Token Manager, Agent etc):
+- Download https://github.com/StakeDAO/stablecoin-rewards-aragon-app
+- Run `npm install` in the root folder
+- Execute `npm run build` in the root folder
+- Execute `npm run publish:major` in the root folder
 
-8) Create a new Stake Capital DAO on the devchain (for subsequent executions, the `STAKE_CAPITAL_DAO_ID` constant must 
+8) Deploy the Cycle Manager app to the devchain as it's not installed by default like the other main apps (Voting, Token Manager, Agent etc):
+- Download https://github.com/StakeDAO/cycle-manager-aragon-app
+- Run `npm install` in the root folder
+- Execute `npm run build` in the root folder
+- Execute `npm run publish:major` in the root folder
+
+9) Create a new Stake Capital DAO on the devchain (for subsequent executions, the `STAKE_CAPITAL_DAO_ID` constant must 
 be changed to an unused ID as it must be unique):
 ```
 $ truffle exec scripts/new-dao.js
 ```
 
-9) Copy the output DAO address into this URL and open it in a web browser:
+10) Copy the output DAO address into this URL and open it in a web browser:
 ```
 http://localhost:3000/#/<DAO address>
 ```
