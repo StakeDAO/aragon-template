@@ -15,8 +15,8 @@ const SCT_VOTING_TOKEN_SYMBOL = "wSCT"
 const SCT_VOTING_PARAMS = ["500000000000000000", "300000000000000000", "3000"] // [supportRequired, minAcceptanceQuorum, voteDuration] 10^16 == 1%
 
 const AGENT_APP_ID = "0x9ac98dc5f995bf0211ed589ef022719d1487e5cb2bab505676f0d084c07cf89a";
-const TEST_ACCOUNT_2_SCT_BALANCE = "5000000000000000000000" // 5000 SCT
-const VAULT_DAI_BALANCE = "10000000000000000000000" // 10000 DAI
+const TEST_ACCOUNT_2_SCT_BALANCE = "50000000000000000000000" // 50000 SCT
+const VAULT_DAI_BALANCE = "100000000000000000000000" // 100000 DAI
 const NETWORK_ARG = "--network"
 
 const stakeCapitalTemplateAddress = () => {
@@ -31,7 +31,7 @@ const stakeCapitalTemplateAddress = () => {
 
 module.exports = async () => {
     try {
-        const [account1, account2] = web3.eth.accounts
+        const [account1, account2] = await web3.eth.getAccounts()
         const TEAM_VOTING_MEMBERS = [account1]
 
         console.log(`Creating SCT token...`)

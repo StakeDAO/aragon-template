@@ -50,7 +50,7 @@ $ npm run deploy:rpc
 9) Create a new Stake Capital DAO on the devchain (for subsequent executions, the `STAKE_CAPITAL_DAO_ID` constant must 
 be changed to an unused ID as it must be unique):
 ```
-$ truffle exec scripts/new-dao.js
+$ npx truffle exec scripts/new-dao.js --network rpc
 ```
 
 10) Copy the output DAO address into this URL and open it in a web browser:
@@ -97,7 +97,7 @@ $ npm run deploy:rinkeby
 6) Create a new Stake Capital DAO with (for subsequent executions, the `STAKE_CAPITAL_DAO_ID` constant must be changed
 to an unused ID as it must be unique):
 ```
-$ truffle exec scripts/new-dao.js --network rinkeby
+$ npx truffle exec scripts/new-dao.js --network rinkeby
 ```
 
 7) Copy the output DAO address into this URL and open it in a web browser:
