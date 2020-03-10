@@ -51,7 +51,7 @@
     "openzeppelin-solidity": "2.0.1"
   },
   "devDependencies": {
-    "@aragon/cli": "6.3.2",
+    "@aragon/cli": "7.0.3",
     "@aragon/apps-survey": "^1.0.0",
     "@aragon/test-helpers": "^2.0.0",
     "eth-ens-namehash": "^2.0.8",

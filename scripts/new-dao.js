@@ -3,25 +3,26 @@ const Token = artifacts.require("Token")
 const Vault = artifacts.require("Vault")
 
 // DAO Config Constants, modify if necessary
-const STAKE_CAPITAL_DAO_ID = "stake-capital-test54" // This ID must be unique, change it for each new deployment or a revert will occur
+const STAKE_CAPITAL_DAO_ID = "stake-capital-test64" // This ID must be unique, change it for each new deployment or a revert will occur
 
 const TEAM_VOTING_TOKEN_NAME = "Stake Capital Owners"
 const TEAM_VOTING_TOKEN_SYMBOL = "SCO"
-const TEAM_VOTING_MEMBERS_WEIGHTS = ["1000000000000000000"] // 10^18 == 1
-const TEAM_VOTING_PARAMS = ["500000000000000000", "300000000000000000", "3000"] // [supportRequired, minAcceptanceQuorum, voteDuration] 10^16 == 1%
+const TEAM_VOTING_PARAMS = ["500000000000000000", "300000000000000000", "86400"] // [supportRequired, minAcceptanceQuorum, voteDuration] 10^16 == 1%
 
 const SCT_VOTING_TOKEN_NAME = "Wrapped Stake Capital Token"
 const SCT_VOTING_TOKEN_SYMBOL = "wSCT"
 const SCT_VOTING_PARAMS = ["500000000000000000", "300000000000000000", "3000"] // [supportRequired, minAcceptanceQuorum, voteDuration] 10^16 == 1%
 
 const AGENT_APP_ID = "0x9ac98dc5f995bf0211ed589ef022719d1487e5cb2bab505676f0d084c07cf89a";
-const TEST_ACCOUNT_2_SCT_BALANCE = "50000000000000000000000" // 50000 SCT
+const ACCOUNTS_SCT_BALANCE = "50000000000000000000000" // 50000 SCT
 const VAULT_DAI_BALANCE = "100000000000000000000000" // 100000 DAI
 const VAULT_SCT_BALANCE = "100000000000000000000000" // 100000 DAI
 const NETWORK_ARG = "--network"
 
+const network = () => process.argv.includes(NETWORK_ARG) ? process.argv[process.argv.indexOf(NETWORK_ARG) + 1] : "local"
+
 const stakeCapitalTemplateAddress = () => {
-    if (process.argv.includes(NETWORK_ARG) && process.argv[process.argv.indexOf(NETWORK_ARG) + 1] === "rinkeby") {
+    if (network() === "rinkeby") {
         const Arapp = require("../arapp")
         return Arapp.environments.rinkeby.address
     } else {
@@ -32,18 +33,26 @@ const stakeCapitalTemplateAddress = () => {
 
 module.exports = async () => {
     try {
-        // const [account1, account2] = await web3.eth.getAccounts() // Truffle 5+
-        const [account1, account2] = web3.eth.accounts // Truffle 4
-        const TEAM_VOTING_MEMBERS = [account1]
+        const creatorAccount = network() === "rinkeby"
+            ? "0xdf456B614fE9FF1C7c0B380330Da29C96d40FB02"
+            : "0xb4124ceb3451635dacedd11767f004d8a28c6ee7"
+
+        const teamVotingMembers = [
+            creatorAccount,
+            "0xDCB72E4E80C7B432FeFAb9F77214e3BFc72AbFaa",
+            "0xA7499Aa6464c078EeB940da2fc95C6aCd010c3Cc"
+        ]
+        const teamVotingMembersWeights = teamVotingMembers.map(account => "1000000000000000000") // 10^18 == 1
 
         console.log(`Creating SCT token...`)
-        let sct = await Token.new(account1, "Stake Capital Token", "SCT")
-        console.log(`SCT Token address: ${sct.address} Transferring SCT to account2...`)
-        await sct.transfer(account2, TEST_ACCOUNT_2_SCT_BALANCE)
-        console.log(`Account1 SCT balance: ${await sct.balanceOf(account1)} Account2 SCT balance: ${await sct.balanceOf(account2)}`)
+        let sct = await Token.new(creatorAccount, "Stake Capital Token", "SCT")
+        console.log(`SCT Token address: ${sct.address} \nTransferring SCT to ${teamVotingMembers[1]} and ${teamVotingMembers[2]}...`)
+        await sct.transfer(teamVotingMembers[1], ACCOUNTS_SCT_BALANCE)
+        await sct.transfer(teamVotingMembers[2], ACCOUNTS_SCT_BALANCE)
+        console.log(`${creatorAccount} SCT balance: ${await sct.balanceOf(creatorAccount)} \n${teamVotingMembers[1]} SCT balance: ${await sct.balanceOf(teamVotingMembers[1])} \n${teamVotingMembers[2]} SCT balance: ${await sct.balanceOf(teamVotingMembers[2])}`)
 
         console.log(`\nCreating DAI token...`)
-        let dai = await Token.new(account1, "Dai", "DAI")
+        let dai = await Token.new(creatorAccount, "Dai", "DAI")
         console.log(`DAI Token address: ${dai.address}`)
 
         let template = await StakeCapitalTemplate.at(stakeCapitalTemplateAddress())
@@ -52,13 +61,13 @@ module.exports = async () => {
         const prepareInstanceReceipt = await template.prepareInstance(
             TEAM_VOTING_TOKEN_NAME,
             TEAM_VOTING_TOKEN_SYMBOL,
-            TEAM_VOTING_MEMBERS,
-            TEAM_VOTING_MEMBERS_WEIGHTS,
+            teamVotingMembers,
+            teamVotingMembersWeights,
             TEAM_VOTING_PARAMS,
             SCT_VOTING_PARAMS,
             sct.address)
 
-        console.log(`Voting tokens created. Gas used: ${prepareInstanceReceipt.receipt.gasUsed}`)
+        console.log(`Transaction 1 mined. Gas used: ${prepareInstanceReceipt.receipt.gasUsed}`)
         // console.log(`wSCT Token Address: ${prepareInstanceReceipt.logs.filter(x => x.event === "DeployToken")[1].args.token}`)
 
         console.log(`\nCreate dao transaction 2...`)

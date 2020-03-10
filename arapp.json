@@ -13,7 +13,7 @@
     },
     "rinkeby": {
       "appName": "stake-capital-template.aragonpm.eth",
-      "address": "0x7cb3f90736dd349ca6ebb45d47e4b1329ee909e0",
+      "address": "0xa44d80eb5555b2073a99c34a80355b9b1dc90bd4",
       "network": "rinkeby",
       "registry": "0x98Df287B6C145399Aaa709692c8D308357bC085D"
     },
