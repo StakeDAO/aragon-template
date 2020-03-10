@@ -5,6 +5,7 @@ import "@aragon/templates-shared/contracts/BaseTemplate.sol";
 import "./external/ICycleManager.sol";
 import "./external/ITokenWrapper.sol";
 import "./external/IStablecoinRewards.sol";
+import "./external/IAirdrop.sol";
 
 // TODO: Update doc strings.
 // TODO: Refactor _setupApps() function
@@ -29,8 +30,10 @@ contract StakeCapitalTemplate is BaseTemplate, TokenCache {
     }
 
     // TODO: Fix StackTooDeep Error
+    ACL acl;
     ICycleManager cycleManager;
     IStablecoinRewards stablecoinRewards;
+    IAirdrop airdrop;
 
     mapping (address => DeployedContracts) private deployedContracts;
 
@@ -72,21 +75,24 @@ contract StakeCapitalTemplate is BaseTemplate, TokenCache {
     * @dev Deploy a Company DAO using a previously cached MiniMe token
     * @param _id String with the name for org, will assign `[id].aragonid.eth`
     */
-    function newInstance(string memory _id, ERC20 _stablecoin) public {
+    function newInstance(string memory _id, ERC20 _stablecoin, ERC20 _sct) public {
         delete cycleManager;
         delete stablecoinRewards;
+        delete airdrop;
+        delete acl;
 
         _validateId(_id);
 
         (Kernel dao, ITokenWrapper tokenWrapper, TokenManager tokenManager, Voting teamVoting) = _retrieveContracts(msg.sender);
-        ACL acl = ACL(dao.acl());
+        acl = ACL(dao.acl());
 
         (Agent agent, Finance finance) = _setupAgentAndFinance(dao, acl, teamVoting);
         cycleManager = _setupCycleManager(dao);
         stablecoinRewards = _setupStablecoinRewards(dao, acl, teamVoting, cycleManager, tokenWrapper,
             tokenManager, agent, _stablecoin);
+        airdrop = _setupAirdrop(dao, acl, agent, cycleManager, _sct, tokenManager, teamVoting);
 
-        _setupAgentPermissions(acl, agent, finance, stablecoinRewards, teamVoting);
+        _setupAgentPermissions(acl, agent, finance, stablecoinRewards, airdrop, teamVoting);
         _setupCycleManagerPermissions(acl, cycleManager, tokenManager, teamVoting, stablecoinRewards);
         _setupTokenWrapperPermissions(acl, tokenWrapper, stablecoinRewards, teamVoting);
 
@@ -139,11 +145,24 @@ contract StakeCapitalTemplate is BaseTemplate, TokenCache {
         return stablecoinRewards;
     }
 
+    function _setupAirdrop(Kernel _dao, ACL _acl, Agent _agent, ICycleManager _cycleManager, ERC20 _sct,
+        TokenManager _tokenManager, Voting _voting) internal returns (IAirdrop)
+    {
+        bytes32 airdropAppId = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("airdrop-app-sc")));
+        IAirdrop airdrop = IAirdrop(_installNonDefaultApp(_dao, airdropAppId));
+        airdrop.initialize(_agent, _cycleManager, _sct, bytes32(0), "");
+
+        _acl.createPermission(_tokenManager, airdrop, airdrop.START_ROLE(), _voting);
+
+        return airdrop;
+    }
+
     function _setupAgentPermissions(ACL _acl, Agent _agent, Finance _finance, IStablecoinRewards _stablecoinRewards,
-        Voting _teamVoting) internal
+        IAirdrop _airdrop, Voting _teamVoting) internal
     {
         _acl.createPermission(_finance, _agent, _agent.TRANSFER_ROLE(), address(this));
         _acl.grantPermission(_stablecoinRewards, _agent, _agent.TRANSFER_ROLE());
+        _acl.grantPermission(_airdrop, _agent, _agent.TRANSFER_ROLE());
         _acl.setPermissionManager(_teamVoting, _agent, _agent.TRANSFER_ROLE());
     }
 

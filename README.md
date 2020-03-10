@@ -41,19 +41,25 @@ $ npm run deploy:rpc
 - Execute `npm run build` in the root folder
 - Execute `npm run publish:major` in the root folder
 
-8) Deploy the Cycle Manager app to the devchain as it's not installed by default like the other main apps (Voting, Token Manager, Agent etc):
+8) Deploy the Airdrop app to the devchain as it's not installed by default like the other main apps (Voting, Token Manager, Agent etc):
+- Download https://github.com/StakeDAO/airdrop-app
+- Run `npm install` in the root folder
+- Execute `npm run build` in the root folder
+- Execute `npm run publish:major` in the root folder
+
+9) Deploy the Cycle Manager app to the devchain as it's not installed by default like the other main apps (Voting, Token Manager, Agent etc):
 - Download https://github.com/StakeDAO/cycle-manager-aragon-app
 - Run `npm install` in the root folder
 - Execute `npm run build` in the root folder
 - Execute `npm run publish:major` in the root folder
 
-9) Create a new Stake Capital DAO on the devchain (for subsequent executions, the `STAKE_CAPITAL_DAO_ID` constant must 
+10) Create a new Stake Capital DAO on the devchain (for subsequent executions, the `STAKE_CAPITAL_DAO_ID` constant must 
 be changed to an unused ID as it must be unique):
 ```
 $ npx truffle exec scripts/new-dao.js --network rpc
 ```
 
-10) Copy the output DAO address into this URL and open it in a web browser:
+11) Copy the output DAO address into this URL and open it in a web browser:
 ```
 http://localhost:3000/#/<DAO address>
 ```

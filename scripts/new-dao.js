@@ -3,7 +3,7 @@ const Token = artifacts.require("Token")
 const Vault = artifacts.require("Vault")
 
 // DAO Config Constants, modify if necessary
-const STAKE_CAPITAL_DAO_ID = "stake-capital-test50" // This ID must be unique, change it for each new deployment or a revert will occur
+const STAKE_CAPITAL_DAO_ID = "stake-capital-test54" // This ID must be unique, change it for each new deployment or a revert will occur
 
 const TEAM_VOTING_TOKEN_NAME = "Stake Capital Owners"
 const TEAM_VOTING_TOKEN_SYMBOL = "SCO"
@@ -17,6 +17,7 @@ const SCT_VOTING_PARAMS = ["500000000000000000", "300000000000000000", "3000"] /
 const AGENT_APP_ID = "0x9ac98dc5f995bf0211ed589ef022719d1487e5cb2bab505676f0d084c07cf89a";
 const TEST_ACCOUNT_2_SCT_BALANCE = "50000000000000000000000" // 50000 SCT
 const VAULT_DAI_BALANCE = "100000000000000000000000" // 100000 DAI
+const VAULT_SCT_BALANCE = "100000000000000000000000" // 100000 DAI
 const NETWORK_ARG = "--network"
 
 const stakeCapitalTemplateAddress = () => {
@@ -31,7 +32,8 @@ const stakeCapitalTemplateAddress = () => {
 
 module.exports = async () => {
     try {
-        const [account1, account2] = await web3.eth.getAccounts()
+        // const [account1, account2] = await web3.eth.getAccounts() // Truffle 5+
+        const [account1, account2] = web3.eth.accounts // Truffle 4
         const TEAM_VOTING_MEMBERS = [account1]
 
         console.log(`Creating SCT token...`)
@@ -62,12 +64,19 @@ module.exports = async () => {
         console.log(`\nCreate dao transaction 2...`)
         let newDaoReceipt = await template.newInstance(
             STAKE_CAPITAL_DAO_ID,
-            dai.address)
+            dai.address,
+            sct.address)
 
         console.log(`DAO address: ${prepareInstanceReceipt.logs.find(x => x.event === "DeployDao").args.dao} Gas used: ${newDaoReceipt.receipt.gasUsed}`)
 
         const vaultProxyAddress = newDaoReceipt.logs.find(x => x.event === "InstalledApp" && x.args.appId === AGENT_APP_ID).args.appProxy
         const vault = await Vault.at(vaultProxyAddress)
+
+        console.log(`\nApprove and transfer SCT to Vault for use by Airdrop app....`)
+        await sct.approve(vaultProxyAddress, VAULT_SCT_BALANCE)
+        await vault.deposit(sct.address, VAULT_SCT_BALANCE)
+        console.log(`Vault SCT balance: ${await sct.balanceOf(vault.address)}`)
+
         console.log(`\nApprove and transfer DAI to Vault for use by Rewards app....`)
         await dai.approve(vaultProxyAddress, VAULT_DAI_BALANCE)
         await vault.deposit(dai.address, VAULT_DAI_BALANCE)
